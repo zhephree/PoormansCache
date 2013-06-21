@@ -1,4 +1,13 @@
 <?php
+/**
+ *  Poorman's Cache v1 - Decent PHP caching
+ * 
+ *  @author Geoffrey Gauchet <geoff@zhephree.com>
+ *  @link http://zhephree.com Website
+ *  @link http://github.com/zhephree GitHub Repositories
+ *  @license GPL, v2
+ */
+
 class PoormansCache {
   protected $path;
 	
