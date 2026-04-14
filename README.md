@@ -1,7 +1,9 @@
 PoormansCache
 =============
 
-PHP caching that's quick and dirty, but it works. Great for shared servers with no memcached
+PHP caching that's quick and dirty, but it works. Great for shared servers with no memcached.
+
+Requires PHP 8.0+.
 
 Usage
 =====
@@ -10,53 +12,75 @@ require_once('poormanscache.php');
 $cache = new PoormansCache();
 
 $key = 'user2375settings';
-if($cache->is_old($key,60)){
-  //do some database stuff to read the data
-  $data = some_function();
-  $cache->store($key,$data);
-}else{
-  $data = $cache->get($key);
+if ($cache->is_old($key, 60)) {
+    // do some database stuff to read the data
+    $data = some_function();
+    $cache->store($key, $data);
+} else {
+    $data = $cache->get($key);
 }
 ```
 
 Methods
 =======
-__construct($path = './cache', $hashkeys = false)
-------------------
-`$path` is an optional parameter. If missing, it the cacheing directory will be the `cache` folder relative to the location of the script. PMC will **NOT** create the directory for you, so you must create it yourself and make it writeable.
 
-`$hashkeys` is optional and determines wheher the keys are stored as md5 hashes, or in plaintext. Plaintext is useful for grouping caches so they can be easily cleared later.
+### `__construct(string $path = './cache', bool $hashKeys = false)`
 
+`$path` — optional. Defaults to the `cache` folder relative to the script. **The directory will be created automatically** if it does not exist. A `RuntimeException` is thrown if the directory cannot be created or is not writable.
 
-store($key, $value)
------------------
-`$key` is just some identifier for the cached data. You can use your full SQL query, or something explicit you come up with.
+`$hashKeys` — optional. When `true`, keys are stored as MD5 hashes instead of plaintext. Plaintext keys are useful for grouping caches so they can be cleared together with wildcards.
 
-`$value` is any type of data you need to cache: string, array, object, anything that can be `serialize()`'d
+---
 
-get($key)
----------
-`$key` is the identifier you used with `store()`
+### `store(string $key, mixed $value): bool`
 
-**returns:** the cached item, which could be any type of data
+`$key` — identifier for the cached data. Can be a SQL query, a descriptive name, etc.
 
-clear($key)
------------
-`$key` is the identifier you used with `store()`
-If you are not hashing keys, they can be cleared using the `*` wildcard. e.g. `$cache->clear('user*')`
+`$value` — anything that can be `serialize()`'d: string, array, object, etc.
 
-**returns:** `true` if the clearing was successful, `false` if not
+**returns:** `true` on success, `false` on failure.
 
-age($key)
----------
-`$key` is the identifier you used with `store()`
+---
 
-**returns:** the age (in minutes) of the cached data if the cache for `$key` exists, otherwise returns -1
+### `get(string $key): mixed`
 
-is_old($key, $age)
------------------
-`$key` is the identifier you used with `store()`
+`$key` — the identifier used with `store()`.
 
-`$age` is the age in minutes you'd like to compare against
+**returns:** the cached value (any type), `null` if the cache entry does not exist or cannot be read.
 
-**returns:** if the age of the cached data for `$key` is greater than `$age`, returns `true`, otherwise, returns `false`
+---
+
+### `clear(string $key): bool`
+
+`$key` — the identifier used with `store()`.
+
+When `$hashKeys` is `false`, wildcard patterns `*` and `?` are supported. e.g. `$cache->clear('user*')`. Wildcards are **not** supported when `$hashKeys` is `true` (throws an `Exception`).
+
+**returns:** `true` if at least one file was removed, `false` otherwise.
+
+---
+
+### `age(string $key): int`
+
+`$key` — the identifier used with `store()`.
+
+**returns:** age in minutes of the cached entry, or `-1` if the entry does not exist.
+
+---
+
+### `is_old(string $key, int $maxAge = 0): bool`
+
+`$key` — the identifier used with `store()`.
+
+`$maxAge` — maximum acceptable age in minutes.
+
+**returns:** `true` if the cached entry is older than `$maxAge` or does not exist, `false` otherwise.
+
+---
+
+Smoke test
+==========
+
+```bash
+php tests/smoke.php
+```

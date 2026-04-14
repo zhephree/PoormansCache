@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  *  Poorman's Cache v1 - Decent PHP caching
  *
@@ -10,92 +11,129 @@
 class PoormansCache {
 	protected string $path;
 	protected bool $hashKeys = false;
-	
-	function __construct(string $path = './cache', bool $hashKeys = false){
-		$this->path = $path;
-		$this->hashKeys = $hashKeys;
-	}
-	
-	function store(string $key, mixed $value): bool {
-		if(empty($key)) return false;
 
-		$filename = $this->hashKeys? md5($key): basename($key);
-		$what = serialize($value);
-		$fullpath = $this->path . '/' . $filename;
-		$temppath = $fullpath . uniqid('', true) . '.tmp';
-		file_put_contents($temppath, $what);
-		rename($temppath, $fullpath);
-		return true;
-	}
-	
-	function get(string $key): mixed {
-		if(empty($key)) return null;
-
-		$filename = $this->hashKeys? md5($key) : basename($key);
-		$fullpath = $this->path . '/' . $filename;
-		if(!file_exists($fullpath)) return null;
-
-		$contents = file_get_contents($fullpath);
-		if(!$contents) return false;
-
-		return unserialize($contents);
-	}
-	
-	function clear(string $key): bool {
-		if(empty($key)) return false;
-
-		if((strpos($key, '*') !== false || strpos($key, '?') !== false) && $this->hashKeys){
-			throw new Exception('Wildcard (*,?) use in keys is not supported when hashKeys is true.');
+	public function __construct(string $path = './cache', bool $hashKeys = false) {
+		$normalized = rtrim($path, DIRECTORY_SEPARATOR);
+		if ($normalized === '') {
+			$normalized = '.';
 		}
 
-		if((strpos($key, '*') !== false || strpos($key, '?') !== false) && !$this->hashKeys){
-			$returnValue = false;
-			foreach(glob($this->path . '/' .$key) as $fullpath){
-				if(file_exists($fullpath)){
-					if(unlink($fullpath)){
-						$returnValue =  true;
-					}
-				}		
+		if (!is_dir($normalized)) {
+			if (!mkdir($normalized, 0777, true) && !is_dir($normalized)) {
+				throw new RuntimeException(sprintf('Unable to create cache directory: %s', $normalized));
 			}
+		}
 
-			return $returnValue;
-		}else{
-			$filename = $this->hashKeys? md5($key) : basename($key);
-			$fullpath = $this->path . '/' . $filename;
-			if(!file_exists($fullpath)) return false;
+		if (!is_writable($normalized)) {
+			throw new RuntimeException(sprintf('Cache directory is not writable: %s', $normalized));
+		}
 
+		$this->path = $normalized;
+		$this->hashKeys = $hashKeys;
+	}
 
-			if(unlink($fullpath)){
-				return true;
-			}
-
+	public function store(string $key, mixed $value): bool {
+		if ($key === '') {
 			return false;
 		}
 
-	}
-	
-	function age(string $key): int {
-		if(empty($key)) return -1;
+		$filename = $this->hashKeys ? md5($key) : basename($key);
+		$what = serialize($value);
+		$fullpath = $this->path . DIRECTORY_SEPARATOR . $filename;
+		$temppath = $fullpath . '.' . uniqid('', true) . '.tmp';
 
-		$filename = $this->hashKeys? md5($key) : basename($key);
-		$fullpath = $this->path . '/' . $filename;
-		if(!file_exists($fullpath)) return -1;
+		$bytes = @file_put_contents($temppath, $what, LOCK_EX);
+		if ($bytes === false) {
+			return false;
+		}
+
+		if (!@rename($temppath, $fullpath)) {
+			@unlink($temppath);
+			return false;
+		}
+
+		return true;
+	}
+
+	public function get(string $key): mixed {
+		if ($key === '') {
+			return null;
+		}
+
+		$filename = $this->hashKeys ? md5($key) : basename($key);
+		$fullpath = $this->path . DIRECTORY_SEPARATOR . $filename;
+		if (!file_exists($fullpath)) {
+			return null;
+		}
+
+		$contents = @file_get_contents($fullpath);
+		if ($contents === false) {
+			return null;
+		}
+
+		return @unserialize($contents, ['allowed_classes' => true]);
+	}
+
+	public function clear(string $key): bool {
+		if ($key === '') {
+			return false;
+		}
+
+		if ((strpbrk($key, '*?') !== false) && $this->hashKeys) {
+			throw new Exception('Wildcard (*,?) use in keys is not supported when hashKeys is true.');
+		}
+
+		if (strpbrk($key, '*?') !== false && !$this->hashKeys) {
+			$returnValue = false;
+			$matches = glob($this->path . DIRECTORY_SEPARATOR . $key) ?: [];
+			foreach ($matches as $fullpath) {
+				if (file_exists($fullpath) && @unlink($fullpath)) {
+					$returnValue = true;
+				}
+			}
+
+			return $returnValue;
+		}
+
+		$filename = $this->hashKeys ? md5($key) : basename($key);
+		$fullpath = $this->path . DIRECTORY_SEPARATOR . $filename;
+		if (!file_exists($fullpath)) {
+			return false;
+		}
+
+		return @unlink($fullpath);
+	}
+
+	public function age(string $key): int {
+		if ($key === '') {
+			return -1;
+		}
+
+		$filename = $this->hashKeys ? md5($key) : basename($key);
+		$fullpath = $this->path . DIRECTORY_SEPARATOR . $filename;
+		if (!file_exists($fullpath)) {
+			return -1;
+		}
 
 		clearstatcache(true, $fullpath);
 		$filedate = filemtime($fullpath);
-		
+		if ($filedate === false) {
+			return -1;
+		}
+
 		$now = time();
 		$diff = $now - $filedate;
-		$mins = ceil($diff / 60);
+		$mins = (int) ceil($diff / 60);
 		return $mins;
 	}
-	
-	function is_old(string $key, int $maxAge = 0): bool {
-		if(empty($key)) return true;
+
+	public function is_old(string $key, int $maxAge = 0): bool {
+		if ($key === '') {
+			return true;
+		}
 
 		$age = $this->age($key);
-		return ($age >= $maxAge || $age == -1);
+		return ($age >= $maxAge || $age === -1);
 	}
 }
 
-?>
