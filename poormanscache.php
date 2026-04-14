@@ -72,6 +72,7 @@ class PoormansCache {
 		$fullpath = $this->path . '/' . $filename;
 		if(!file_exists($fullpath)) return -1;
 
+		clearstatcache(true, $fullpath);
 		$filedate = filemtime($fullpath);
 		
 		$now = time();
