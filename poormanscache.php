@@ -51,20 +51,18 @@ class PoormansCache {
 				}		
 			}
 
-
 			return $returnValue;
 		}else{
 			$filename = $this->hashKeys? md5($key) : basename($key);
 			$fullpath = $this->path . '/' . $filename;
-			if(file_exists($fullpath)){
-				if(unlink($fullpath)){
-					return true;
-				}else{
-					return false;
-				}
-			}else{
-				return false;
-			}	
+			if(!file_exists($fullpath)) return false;
+
+
+			if(unlink($fullpath)){
+				return true;
+			}
+
+			return false;
 		}
 
 	}
@@ -72,25 +70,19 @@ class PoormansCache {
 	function age($key){
 		$filename = $this->hashKeys? md5($key) : basename($key);
 		$fullpath = $this->path . '/' . $filename;
-		if(file_exists($fullpath)){
-			$filedate = filemtime($fullpath);
-			
-			$now = time();
-			$diff = $now - $filedate;
-			$mins = ceil($diff / 60);
-			return $mins;
-		}else{
-			return -1;
-		}
+		if(!file_exists($fullpath)) return -1;
+
+		$filedate = filemtime($fullpath);
+		
+		$now = time();
+		$diff = $now - $filedate;
+		$mins = ceil($diff / 60);
+		return $mins;
 	}
 	
 	function is_old($key,$maxAge){
 		$age = $this->age($key);
-		if($age >= $maxAge || $age == -1){
-			return true;
-		}else{
-			return false;
-		}
+		return ($age >= $maxAge || $age == -1);
 	}
 }
 
