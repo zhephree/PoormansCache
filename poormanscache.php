@@ -20,32 +20,20 @@ class PoormansCache {
 		$filename = $this->hashKeys? md5($key): basename($key);
 		$what = serialize($value);
 		$fullpath = $this->path . '/' . $filename;
-		
-		$fh = fopen($fullpath, 'w');
-		fwrite($fh, $what);
-		fclose($fh);
-		unset($fh);
+		$temppath = $fullpath . uniqid('', true) . '.tmp';
+		file_put_contents($temppath, $what);
+		rename($temppath, $fullpath);
 	}
 	
 	function get($key){
 		$filename = $this->hashKeys? md5($key) : basename($key);
 		$fullpath = $this->path . '/' . $filename;
-		if(file_exists($fullpath)){
-			$fh = fopen($fullpath, 'r');
-			$filesize = filesize($fullpath);
-			if($filesize > 0){
-				$contents = fread($fh, $filesize);
-				fclose($fh);
-				unset($fh);
-				return unserialize($contents);
-			}else{
-				fclose($fh);
-				unset($fh);
-				return false;
-			}
-		}else{
-			return false;
-		}
+		if(!file_exists($fullpath)) return null;
+
+		$contents = file_get_contents($fullpath);
+		if(!$contents) return false;
+
+		return unserialize($contents);
 	}
 	
 	function clear($key){
