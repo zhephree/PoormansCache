@@ -16,7 +16,7 @@ class PoormansCache {
 		$this->hashKeys = $hashKeys;
 	}
 	
-	function store(string $key, $value): bool {
+	function store(string $key, mixed $value): bool {
 		if(empty($key)) return false;
 
 		$filename = $this->hashKeys? md5($key): basename($key);
