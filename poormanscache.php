@@ -12,6 +12,10 @@ class PoormansCache {
 	protected string $path;
 	protected bool $hashKeys = false;
 
+	private function getKey(string $key): string {
+		return $this->hashKeys ? md5($key) : str_replace(['/', '\\'], '_', $key);
+	}
+
 	public function __construct(string $path = './cache', bool $hashKeys = false) {
 		$normalized = rtrim($path, DIRECTORY_SEPARATOR);
 		if ($normalized === '') {
@@ -37,7 +41,7 @@ class PoormansCache {
 			return false;
 		}
 
-		$filename = $this->hashKeys ? md5($key) : basename($key);
+		$filename = $this->getKey($key);
 		$what = serialize($value);
 		$fullpath = $this->path . DIRECTORY_SEPARATOR . $filename;
 		$temppath = $fullpath . '.' . uniqid('', true) . '.tmp';
@@ -60,7 +64,7 @@ class PoormansCache {
 			return null;
 		}
 
-		$filename = $this->hashKeys ? md5($key) : basename($key);
+		$filename = $this->getKey($key);
 		$fullpath = $this->path . DIRECTORY_SEPARATOR . $filename;
 		if (!file_exists($fullpath)) {
 			return null;
@@ -95,7 +99,7 @@ class PoormansCache {
 			return $returnValue;
 		}
 
-		$filename = $this->hashKeys ? md5($key) : basename($key);
+		$filename = $this->getKey($key);
 		$fullpath = $this->path . DIRECTORY_SEPARATOR . $filename;
 		if (!file_exists($fullpath)) {
 			return false;
@@ -109,7 +113,7 @@ class PoormansCache {
 			return -1;
 		}
 
-		$filename = $this->hashKeys ? md5($key) : basename($key);
+		$filename = $this->getKey($key);
 		$fullpath = $this->path . DIRECTORY_SEPARATOR . $filename;
 		if (!file_exists($fullpath)) {
 			return -1;
